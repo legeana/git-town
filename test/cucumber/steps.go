@@ -350,29 +350,7 @@ func defineSteps(sc *godog.ScenarioContext) {
 		branch := gitdomain.NewLocalBranchName(name)
 		branchType := devRepo.Config.BranchType(branch)
 		if branchType != configdomain.BranchTypePrototypeBranch {
-			return fmt.Errorf(
-				"branch %q isn't prototype as expected.\nPrototype branches: %s",
-				branch,
-				devRepo.Config.NormalConfig.PrototypeBranches.Join(", "),
-			)
-		}
-		return nil
-	})
-
-	sc.Step(`^custom global Git setting "alias\.(.*?)" is "([^"]*)"$`, func(ctx context.Context, name, value string) error {
-		state := ctx.Value(keyScenarioState).(*ScenarioState)
-		devRepo := state.fixture.DevRepo.GetOrPanic()
-		aliasableCommand := configdomain.AliasableCommand(name)
-		return devRepo.SetGitAlias(aliasableCommand, value)
-	})
-
-	sc.Step(`^custom global Git setting "alias\.(.*?)" is (?:now|still) "([^"]*)"$`, func(ctx context.Context, name, want string) error {
-		state := ctx.Value(keyScenarioState).(*ScenarioState)
-		devRepo := state.fixture.DevRepo.GetOrPanic()
-		aliasableCommand := configdomain.AliasableCommand(name)
-		have := asserts.NoError1(devRepo.LoadGitAlias(aliasableCommand))
-		if have != want {
-			return fmt.Errorf("unexpected value for key %q: want %q have %q", name, want, have)
+			return fmt.Errorf("branch %q isn't prototype as expected, it is %q", branch, branchType)
 		}
 		return nil
 	})
