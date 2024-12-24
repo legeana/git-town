@@ -52,6 +52,7 @@ func Cmd() *cobra.Command {
 	addAllFlag, readAllFlag := flags.All("sync all local branches")
 	addDetachedFlag, readDetachedFlag := flags.Detached()
 	addDryRunFlag, readDryRunFlag := flags.DryRun()
+	addFeatureStrategyFlag, readFeatureStrategyFlag := flags.SyncFeatureStrategy()
 	addNoPushFlag, readNoPushFlag := flags.NoPush()
 	addStackFlag, readStackFlag := flags.Stack("sync the stack that the current branch belongs to")
 	addVerboseFlag, readVerboseFlag := flags.Verbose()
@@ -74,6 +75,10 @@ func Cmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			featureStrategy, err := readFeatureStrategyFlag(cmd)
+			if err != nil {
+				return err
+			}
 			noPush, err := readNoPushFlag(cmd)
 			if err != nil {
 				return err
@@ -92,6 +97,7 @@ func Cmd() *cobra.Command {
 	addAllFlag(&cmd)
 	addDetachedFlag(&cmd)
 	addDryRunFlag(&cmd)
+	addFeatureStrategyFlag(&cmd)
 	addNoPushFlag(&cmd)
 	addStackFlag(&cmd)
 	addVerboseFlag(&cmd)
