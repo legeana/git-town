@@ -59,6 +59,7 @@ type BranchProgramArgs struct {
 	Program             Mutable[program.Program]
 	PushBranches        configdomain.PushBranches
 	Remotes             gitdomain.Remotes
+	StrategyOverride    configdomain.SyncStrategy
 }
 
 // LocalBranchProgram provides the program to sync a local branch.
@@ -72,7 +73,8 @@ func LocalBranchProgram(localName gitdomain.LocalBranchName, branchInfo gitdomai
 	branchType := args.Config.BranchType(localName)
 	switch branchType {
 	case configdomain.BranchTypeFeatureBranch:
-		FeatureBranchProgram(args.Config.NormalConfig.SyncFeatureStrategy.SyncStrategy(), featureBranchArgs{
+		strategy := args.StrategyOverride.GetOrElse(args.Config.NormalConfig.SyncFeatureStrategy.SyncStrategy())
+		FeatureBranchProgram(strategy, featureBranchArgs{
 			firstCommitMessage: firstCommitMessage,
 			localName:          localName,
 			offline:            args.Config.NormalConfig.Offline,
@@ -87,7 +89,8 @@ func LocalBranchProgram(localName gitdomain.LocalBranchName, branchInfo gitdomai
 		configdomain.BranchTypeMainBranch:
 		PerennialBranchProgram(branchInfo, args)
 	case configdomain.BranchTypeParkedBranch:
-		ParkedBranchProgram(args.Config.NormalConfig.SyncFeatureStrategy.SyncStrategy(), args.InitialBranch, featureBranchArgs{
+		strategy := args.StrategyOverride.GetOrElse(args.Config.NormalConfig.SyncFeatureStrategy.SyncStrategy())
+		ParkedBranchProgram(strategy, args.InitialBranch, featureBranchArgs{
 			firstCommitMessage: firstCommitMessage,
 			localName:          localName,
 			offline:            args.Config.NormalConfig.Offline,
@@ -102,7 +105,8 @@ func LocalBranchProgram(localName gitdomain.LocalBranchName, branchInfo gitdomai
 	case configdomain.BranchTypeObservedBranch:
 		ObservedBranchProgram(branchInfo.RemoteName, args.Program)
 	case configdomain.BranchTypePrototypeBranch:
-		FeatureBranchProgram(args.Config.NormalConfig.SyncPrototypeStrategy.SyncStrategy(), featureBranchArgs{
+		strategy := args.StrategyOverride.GetOrElse(args.Config.NormalConfig.SyncPrototypeStrategy.SyncStrategy())
+		FeatureBranchProgram(strategy, featureBranchArgs{
 			firstCommitMessage: firstCommitMessage,
 			localName:          localName,
 			offline:            args.Config.NormalConfig.Offline,

@@ -52,6 +52,7 @@ func Cmd() *cobra.Command {
 	addAllFlag, readAllFlag := flags.All("sync all local branches")
 	addDetachedFlag, readDetachedFlag := flags.Detached()
 	addDryRunFlag, readDryRunFlag := flags.DryRun()
+	addStrategyFlag, readStrategyFlag := flags.SyncStrategy()
 	addNoPushFlag, readNoPushFlag := flags.NoPush()
 	addStackFlag, readStackFlag := flags.Stack("sync the stack that the current branch belongs to")
 	addVerboseFlag, readVerboseFlag := flags.Verbose()
@@ -74,6 +75,10 @@ func Cmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			strategyOverride, err := readStrategyFlag(cmd)
+			if err != nil {
+				return err
+			}
 			noPush, err := readNoPushFlag(cmd)
 			if err != nil {
 				return err
@@ -86,19 +91,20 @@ func Cmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return executeSync(allBranches, stack, detached, dryRun, verbose, noPush)
+			return executeSync(strategyOverride, allBranches, stack, detached, dryRun, verbose, noPush)
 		},
 	}
 	addAllFlag(&cmd)
 	addDetachedFlag(&cmd)
 	addDryRunFlag(&cmd)
+	addStrategyFlag(&cmd)
 	addNoPushFlag(&cmd)
 	addStackFlag(&cmd)
 	addVerboseFlag(&cmd)
 	return &cmd
 }
 
-func executeSync(syncAllBranches configdomain.AllBranches, syncStack configdomain.FullStack, detached configdomain.Detached, dryRun configdomain.DryRun, verbose configdomain.Verbose, pushBranches configdomain.PushBranches) error {
+func executeSync(strategyOverride Option[configdomain.SyncStrategy], syncAllBranches configdomain.AllBranches, syncStack configdomain.FullStack, detached configdomain.Detached, dryRun configdomain.DryRun, verbose configdomain.Verbose, pushBranches configdomain.PushBranches) error {
 	repo, err := execute.OpenRepo(execute.OpenRepoArgs{
 		DryRun:           dryRun,
 		PrintBranchNames: true,
@@ -110,7 +116,7 @@ func executeSync(syncAllBranches configdomain.AllBranches, syncStack configdomai
 	if err != nil {
 		return err
 	}
-	data, exit, err := determineSyncData(syncAllBranches, syncStack, repo, verbose, detached)
+	data, exit, err := determineSyncData(strategyOverride, syncAllBranches, syncStack, repo, verbose, detached)
 	if err != nil || exit {
 		return err
 	}
@@ -194,9 +200,10 @@ type syncData struct {
 	remotes                  gitdomain.Remotes
 	shouldPushTags           bool
 	stashSize                gitdomain.StashSize
+	strategyOverride         Option[configdomain.SyncStrategy],
 }
 
-func determineSyncData(syncAllBranches configdomain.AllBranches, syncStack configdomain.FullStack, repo execute.OpenRepoResult, verbose configdomain.Verbose, detached configdomain.Detached) (data syncData, exit bool, err error) {
+func determineSyncData(strategyOverride Option[configdomain.SyncStrategy], syncAllBranches configdomain.AllBranches, syncStack configdomain.FullStack, repo execute.OpenRepoResult, verbose configdomain.Verbose, detached configdomain.Detached) (data syncData, exit bool, err error) {
 	dialogTestInputs := components.LoadTestInputs(os.Environ())
 	preFetchBranchesSnapshot, err := repo.Git.BranchesSnapshot(repo.Backend)
 	if err != nil {
@@ -282,8 +289,14 @@ func determineSyncData(syncAllBranches configdomain.AllBranches, syncStack confi
 	var branchNamesToSync gitdomain.LocalBranchNames
 	switch {
 	case syncAllBranches.Enabled():
+		if strategyOverride.Has() {
+			return data, false, errors.New(messages.SyncAllStrategyOverrideNotSupported)
+		}
 		branchNamesToSync = localBranches
 	case syncStack.Enabled():
+		if strategyOverride.Has() {
+			return data, false, errors.New(messages.SyncStackStrategyOverrideNotSupported)
+		}
 		branchNamesToSync = validatedConfig.NormalConfig.Lineage.BranchLineageWithoutRoot(initialBranch)
 	default:
 		branchNamesToSync = gitdomain.LocalBranchNames{initialBranch}
@@ -305,6 +318,9 @@ func determineSyncData(syncAllBranches configdomain.AllBranches, syncStack confi
 	})
 	if err != nil || exit {
 		return data, exit, err
+	}
+	if strategyOverride, hasStrategyOverride := strategyOverride.Get(); hasStrategyOverride {
+		validatedConfig.NormalConfig.SyncStrategy = strategyOverride
 	}
 	var shouldPushTags bool
 	switch {
@@ -339,6 +355,7 @@ func determineSyncData(syncAllBranches configdomain.AllBranches, syncStack confi
 		remotes:                  remotes,
 		shouldPushTags:           shouldPushTags,
 		stashSize:                stashSize,
+		strategyOverride          strategyOverride,
 	}, false, err
 }
 

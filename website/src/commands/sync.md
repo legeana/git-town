@@ -57,6 +57,11 @@ developers.
 Use the `--dry-run` flag to test-drive this command. It prints the Git commands
 that would be run but doesn't execute them.
 
+### --feature-strategy &lt;name&gt;
+
+Overrides the configured
+[sync-feature-strategy](../preferences/sync-feature-strategy.md).
+
 ### --verbose / -v
 
 The `--verbose` aka `-v` flag prints all Git commands run under the hood to
