@@ -38,6 +38,10 @@ Feature: default merge message
       | main   | git branch feature {{ sha 'feature commit' }} |
       |        | git push -u origin feature                    |
       |        | git checkout feature                          |
+    And Git Town prints:
+      """
+      Cannot undo commit {{ Merge branch 'feature' }} because it is on a perennial branch
+      """
     And the current branch is now "feature"
     And the currently checked out commit is "feature commit"
     And these commits exist now
